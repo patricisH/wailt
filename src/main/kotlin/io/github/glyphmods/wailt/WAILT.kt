@@ -48,7 +48,7 @@ object WAILT {
                 minecraft.toasts,
                 MetadataFetcher(
                     minecraft.gameDirectory,
-                    URI.create(Config.metadataUrl.get()).toURL(),
+                    URI.create(Config.metadataUrl.get()),
                     Config.forceEmbeddedMetadata.get()
                 )
             )

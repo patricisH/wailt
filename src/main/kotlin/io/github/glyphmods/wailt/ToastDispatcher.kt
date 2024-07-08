@@ -1,7 +1,6 @@
 package io.github.glyphmods.wailt
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
+import com.google.gson.JsonElement
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.toasts.ToastComponent
 import net.minecraft.data.registries.VanillaRegistries
@@ -13,14 +12,12 @@ import net.neoforged.fml.common.EventBusSubscriber
 import net.neoforged.neoforge.client.event.ClientTickEvent
 import net.neoforged.neoforge.client.event.sound.PlayStreamingSourceEvent
 
-@Serializable
 data class Tracks(
     override val version: Int,
     val tracks: Map<String, Map<String, Map<String, String>>>,
     val artists: Map<String, Artist>
 ) : MetadataFile
 
-@Serializable
 data class Artist(val component: JsonElement)
 
 data class Track(val title: Component, val artist: Component)

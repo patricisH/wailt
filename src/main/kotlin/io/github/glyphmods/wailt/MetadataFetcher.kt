@@ -1,10 +1,8 @@
 package io.github.glyphmods.wailt
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
+import com.google.gson.Gson
 import java.io.File
-import java.net.URL
+import java.net.URI
 
 const val FORMAT_VERSION = 1
 
@@ -12,7 +10,8 @@ interface MetadataFile {
     val version: Int
 }
 
-class MetadataFetcher(gameDirectory: File, val baseUrl: URL, val forceEmbedded: Boolean) {
+class MetadataFetcher(gameDirectory: File, val baseURL: URI, val forceEmbedded: Boolean) {
+    private val gson = Gson()
     val cacheDirectory = gameDirectory.resolve("wailt").also {
         if (!it.exists()) {
             check(it.mkdir()) { "Failed to create cache directory! $it" }
@@ -20,45 +19,48 @@ class MetadataFetcher(gameDirectory: File, val baseUrl: URL, val forceEmbedded: 
         check(it.isDirectory) { "Cache directory $it is not a directory!" }
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
-    inline fun <reified T : MetadataFile> fetchFile(fileName: String): T = if (forceEmbedded) {
-        WAILT.LOGGER.warn("Using embedded copy of $fileName, as requested")
-        runCatching {
-            Json.decodeFromStream<T>(this::class.java.getResourceAsStream("/$fileName")!!)
-        }.getOrElse {
-            throw RuntimeException("Could not load metadata file $fileName", it)
+    private fun <T: MetadataFile> loadFromResource(fileName: String, type: Class<T>) =
+        this::class.java.getResourceAsStream("/$fileName")!!.reader().runCatching {
+            gson.fromJson(this, type)
         }
-    } else {
-        runCatching {
-            URL(baseUrl, "tracks.json").openStream().reader().readText()
-        }.onSuccess { data ->
-            WAILT.LOGGER.debug("Caching downloaded file $fileName")
-            try {
-                cacheDirectory.resolve(fileName).writeText(data)
-            } catch (e: Exception) {
-                WAILT.LOGGER.warn("Failed to cache downloaded file $fileName:", e)
-            }
-        }.mapCatching {
-            Json.decodeFromString<T>(it).also { data ->
-                check(data.version == FORMAT_VERSION) { "File $fileName has an unsupported version ${data.version}! (expected $FORMAT_VERSION)" }
-            }
-        }.getOrElse { downloadError ->
-            WAILT.LOGGER.warn("Failed to download or parse $fileName, loading cached file")
-            WAILT.LOGGER.debug("Download error:", downloadError)
-            cacheDirectory.resolve(fileName).runCatching {
-                Json.decodeFromString<T>(readText())
-            }.getOrElse { readError ->
-                WAILT.LOGGER.warn("Unable to read $fileName from cache, using embedded copy")
-                WAILT.LOGGER.debug("Cache read error:", readError)
-                runCatching {
-                    Json.decodeFromStream<T>(this::class.java.getResourceAsStream("/$fileName")!!)
-                }.getOrElse {
-                    throw RuntimeException("Could not load metadata file $fileName", it).apply {
-                        addSuppressed(readError)
-                        addSuppressed(downloadError)
+
+    fun <T : MetadataFile> fetchFile(fileName: String, type: Class<T>): T =
+        if (forceEmbedded) {
+            WAILT.LOGGER.warn("Using embedded copy of $fileName, as requested")
+            loadFromResource(fileName, type).getOrElse { throw RuntimeException("Could not load metadata file $fileName", it) }
+        } else {
+            runCatching {
+                baseURL.resolve(fileName).toURL().openStream().reader().use {
+                    it.readText()
+                }
+            }.onSuccess { data ->
+                WAILT.LOGGER.debug("Caching downloaded file $fileName")
+                cacheDirectory.resolve(fileName).runCatching {
+                    writeText(data)
+                }.onFailure {
+                    WAILT.LOGGER.warn("Failed to cache downloaded file $fileName:", it)
+                }
+            }.mapCatching { data ->
+                gson.fromJson(data, type)!!.also {
+                    check(it.version == FORMAT_VERSION) { "File $fileName has an unsupported version ${it.version}! (expected $FORMAT_VERSION)" }
+                }
+            }.getOrElse { downloadError ->
+                WAILT.LOGGER.warn("Failed to download or parse $fileName, loading cached file")
+                WAILT.LOGGER.debug("Download error:", downloadError)
+                cacheDirectory.resolve(fileName).runCatching {
+                    gson.fromJson(readText(), type)
+                }.getOrElse { readError ->
+                    WAILT.LOGGER.warn("Unable to read $fileName from cache, using embedded copy")
+                    WAILT.LOGGER.debug("Cache read error:", readError)
+                    loadFromResource<T>(fileName, type).getOrElse {
+                        throw RuntimeException("Could not load metadata file $fileName", it).apply {
+                            addSuppressed(readError)
+                            addSuppressed(downloadError)
+                        }
                     }
                 }
             }
-        }
-    }.also { check(it.version == FORMAT_VERSION) }
+        }.also { check(it.version == FORMAT_VERSION) }
+
+    inline fun <reified T: MetadataFile> fetchFile(fileName: String) = fetchFile(fileName, T::class.java)
 }

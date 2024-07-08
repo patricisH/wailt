@@ -64,7 +64,7 @@ class ToastDispatcher(private val toastComponent: ToastComponent, metadataFetche
     @SubscribeEvent
     fun onPlaySoundEvent(event: PlayStreamingSourceEvent) {
         val sound = event.sound
-        if (sound.source == SoundSource.MUSIC) {
+        if (sound.source == SoundSource.MUSIC && Config.automaticallyShowToast.get()) {
             dispatchToast(sound.sound.location)
         }
     }

@@ -9,6 +9,8 @@ import net.neoforged.fml.common.Mod
 import net.neoforged.fml.config.ModConfig
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent
+import net.neoforged.neoforge.client.gui.ConfigurationScreen
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory
 import net.neoforged.neoforge.client.settings.KeyConflictContext
 import net.neoforged.neoforge.client.settings.KeyModifier
 import org.apache.logging.log4j.LogManager
@@ -17,6 +19,7 @@ import org.lwjgl.glfw.GLFW
 import thedarkcolour.kotlinforforge.neoforge.forge.FORGE_BUS
 import thedarkcolour.kotlinforforge.neoforge.forge.LOADING_CONTEXT
 import java.net.URI
+
 
 @Mod(WAILT.ID)
 @EventBusSubscriber(bus = EventBusSubscriber.Bus.MOD)
@@ -37,7 +40,10 @@ object WAILT {
     }
 
     init {
-        LOADING_CONTEXT.activeContainer.registerConfig(ModConfig.Type.CLIENT, Config.spec)
+        with(LOADING_CONTEXT.activeContainer) {
+            registerConfig(ModConfig.Type.CLIENT, Config.spec)
+            registerExtensionPoint(IConfigScreenFactory::class.java, IConfigScreenFactory(::ConfigurationScreen))
+        }
     }
 
     @SubscribeEvent

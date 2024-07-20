@@ -1,5 +1,12 @@
 {
   "gui.wailt.toast.unknown": "Unknown",
   "gui.wailt.toast.no-song": "Nothing is playing",
-  "key.wailt.show-toast": "[WAILT] Show the music toast"
+  "key.wailt.show-toast": "[WAILT] Show the music toast",
+  "wailt.configuration.metadata": "Track list settings",
+  "wailt.configuration.force-embedded": "Use embedded track list",
+  "wailt.configuration.url": "Source URL for the track list",
+  "wailt.configuration.toast": "Toast settings",
+  "wailt.configuration.duration": "Toast display duration",
+  "wailt.configuration.disable-color": "Disable color",
+  "wailt.configuration.automatically-show": "Automatically show toast"
 }
